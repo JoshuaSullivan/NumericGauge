@@ -8,6 +8,20 @@ import Combine
 ///
 public final class NumericGauge: UIView {
     
+    /// Controls whether or not a value preview is displayed as part of the numeric gauge.
+    public enum ValuePreviewMode {
+        /// No preview is displayed.
+        case disabled
+        
+        /// A default number formatter will be used.
+        ///
+        /// This formatter will have a precision based on the numeric range encompassed by the gauge.
+        case `default`
+        
+        /// Provide a custom formatter by
+        case custom(NumberFormatter)
+    }
+    
     /// The minimum value of the gauge.
     public let minValue: Double
     
@@ -16,6 +30,9 @@ public final class NumericGauge: UIView {
     
     /// The color theme of the bar.
     public let theme: NumericGaugeTheme
+    
+    /// Controls whether or not live value preview is shown.
+    private let showValuePreview: Bool
     
     /// Number formatter for live value preview.
     public let formatter: NumberFormatter
@@ -44,14 +61,18 @@ public final class NumericGauge: UIView {
     private let scrollView: UIScrollView
     
     /// Create a new instance of NumericGauge.
-    public init(minValue: Double, maxValue: Double, layout: NumericGaugeLayout = NumericGaugeLayout(), theme: NumericGaugeTheme = .default, formatter: NumberFormatter? = nil) {
+    public init(minValue: Double, maxValue: Double, layout: NumericGaugeLayout = NumericGaugeLayout(), theme: NumericGaugeTheme = .default, valuePreviewMode: ValuePreviewMode = .default) {
         self.minValue = minValue
         self.maxValue = maxValue
         self.theme = theme
         self.layout = layout
-        if let formatter {
-            self.formatter = formatter
-        } else {
+        
+        switch valuePreviewMode {
+        case .disabled:
+            showValuePreview = false
+            formatter = NumberFormatter()
+        case .default:
+            showValuePreview = true
             let nf = NumberFormatter()
             nf.numberStyle = .decimal
             nf.usesGroupingSeparator = false
@@ -69,8 +90,11 @@ public final class NumericGauge: UIView {
                 nf.maximumFractionDigits = 0
             }
             self.formatter = nf
+        case .custom(let formatter):
+            showValuePreview = true
+            self.formatter = formatter
         }
-        
+                
         scrollView = UIScrollView(frame: .zero)
         scrollView.translatesAutoresizingMaskIntoConstraints = false
         scrollView.showsVerticalScrollIndicator = false
@@ -151,6 +175,14 @@ public final class NumericGauge: UIView {
         }
     }
     
+    /// Set the gauge to a specific value within its range.
+    ///
+    /// - Parameter value: The new value to show.
+    ///
+    public func set(value: Double) {
+        self.valueSubject.send(value)
+    }
+    
     @available(*, unavailable)
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
@@ -163,6 +195,6 @@ extension NumericGauge: UIScrollViewDelegate {
     public func scrollViewDidScroll(_ scrollView: UIScrollView) {
         let x = scrollView.contentOffset.x + scrollView.contentInset.left
         let pct = max(0.0, min(1.0, x / 1000))
-        valueSubject.send(pct * (maxValue - minValue) + minValue)
+        self.set(value: pct * (maxValue - minValue) + minValue)
     }
 }
