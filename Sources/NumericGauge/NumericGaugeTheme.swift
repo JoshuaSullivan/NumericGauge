@@ -16,7 +16,7 @@ public struct NumericGaugeTheme {
     public let indicator: UIColor
     
     /// Create a new instance of Theme.
-    init(background: UIColor, majorTick: UIColor, minorTick: UIColor, indicator: UIColor) {
+    public init(background: UIColor, majorTick: UIColor, minorTick: UIColor, indicator: UIColor) {
         self.background = background
         self.majorTick = majorTick
         self.minorTick = minorTick

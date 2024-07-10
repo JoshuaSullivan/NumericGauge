@@ -6,7 +6,7 @@ import Combine
 /// The NumericGauge control allows much more precise selection of values that the standard slider. It was inspired
 /// by the color editing controls in the Photos app, with more of a classic analog gauge style.
 ///
-public final class NumericGauge: UIView {
+public final class NumericGauge: UIControl {
     
     /// Controls whether or not a value preview is displayed as part of the numeric gauge.
     public enum ValuePreviewMode {
@@ -20,6 +20,15 @@ public final class NumericGauge: UIView {
         
         /// Provide a custom formatter by
         case custom(NumberFormatter)
+    }
+    
+    /// The current value of the gauge.
+    public var value: Double {
+        didSet {
+            sendActions(for: .valueChanged)
+            valueSubject.send(value)
+            updateBarIfNecessary()
+        }
     }
     
     /// The minimum value of the gauge.
@@ -40,32 +49,32 @@ public final class NumericGauge: UIView {
     /// The size of the guage bar.
     public let layout: NumericGaugeLayout
     
-    /// The current value of the gauge.
-    public var value: Double {
-        valueSubject.value
-    }
-    
-    /// A publisher which emits the changing gauge values.
+    /// Publishes the value of the NumericGauge.
+    ///
+    /// An alternative to target-action for those that prefer to use Combine.
+    /// 
     public var valuePublisher: AnyPublisher<Double, Never> {
         valueSubject.eraseToAnyPublisher()
     }
     
-    private lazy var valueSubject: CurrentValueSubject<Double, Never> = {
-        CurrentValueSubject(minValue)
-    }()
-    
+    private let valueSubject = CurrentValueSubject<Double, Never>(0.0)
+        
     private lazy var gaugeBar: UIImage = {
         createGaugeBar()
     }()
     
     private let scrollView: UIScrollView
     
+    private var updatedByScrollView: Bool = false
+    
     /// Create a new instance of NumericGauge.
     public init(minValue: Double, maxValue: Double, layout: NumericGaugeLayout = NumericGaugeLayout(), theme: NumericGaugeTheme = .default, valuePreviewMode: ValuePreviewMode = .default) {
+        self.value = minValue
         self.minValue = minValue
         self.maxValue = maxValue
         self.theme = theme
         self.layout = layout
+        self.valueSubject.value = minValue
         
         switch valuePreviewMode {
         case .disabled:
@@ -104,20 +113,24 @@ public final class NumericGauge: UIView {
         scrollView.decelerationRate = .fast
         
         super.init(frame: .zero)
-        
-        scrollView.delegate = self
         self.backgroundColor = theme.background
+    }
+    
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
     }
     
     public override func layoutSubviews() {
         addSubview(scrollView)
-        
+
         let w = floor(self.bounds.width * 0.5)
         
         let imageView = UIImageView(image: gaugeBar)
         scrollView.addSubview(imageView)
         scrollView.contentInset = UIEdgeInsets(top: 0, left: w, bottom: 0, right: w)
-        scrollView.contentOffset = CGPoint(x: -w, y: 0.0)
+        let pct = (value - minValue) / (maxValue - minValue)
+        let x = pct * layout.barWidth
         
         let indicatorView = UIView(frame: .zero)
         indicatorView.translatesAutoresizingMaskIntoConstraints = false
@@ -140,6 +153,12 @@ public final class NumericGauge: UIView {
             indicatorView.widthAnchor.constraint(equalToConstant: 1),
             indicatorView.centerXAnchor.constraint(equalTo: centerXAnchor)
         ])
+        
+        // We need the scrollview to layout before
+        scrollView.layoutIfNeeded()
+                
+        scrollView.contentOffset = CGPoint(x: -w + x, y: 0.0)
+        scrollView.delegate = self
     }
     
     /// Create the gauge bar image.
@@ -175,17 +194,14 @@ public final class NumericGauge: UIView {
         }
     }
     
-    /// Set the gauge to a specific value within its range.
-    ///
-    /// - Parameter value: The new value to show.
-    ///
-    public func set(value: Double) {
-        self.valueSubject.send(value)
-    }
-    
-    @available(*, unavailable)
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
+    private func updateBarIfNecessary() {
+        guard !updatedByScrollView else {
+            updatedByScrollView = false
+            return
+        }
+        let pct = (value - minValue) / (maxValue - minValue)
+        let x = pct * layout.barWidth + scrollView.contentInset.left
+        scrollView.contentOffset = CGPoint(x: x, y: 0)
     }
 }
 
@@ -193,8 +209,9 @@ public final class NumericGauge: UIView {
 
 extension NumericGauge: UIScrollViewDelegate {
     public func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        self.updatedByScrollView = true
         let x = scrollView.contentOffset.x + scrollView.contentInset.left
-        let pct = max(0.0, min(1.0, x / 1000))
-        self.set(value: pct * (maxValue - minValue) + minValue)
+        let pct = max(0.0, min(1.0, x / layout.barWidth))
+        value = pct * (maxValue - minValue) + minValue
     }
 }

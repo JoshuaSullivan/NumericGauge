@@ -3,39 +3,77 @@ import Combine
 
 public struct NumericGaugeView: UIViewRepresentable {
     
-    private class ValueProxy {
+    public class Coordinator: NSObject {
         private var parent: NumericGaugeView
-        private var sub: AnyCancellable?
         
-        init(parent: NumericGaugeView, gauge: NumericGauge) {
+        init(parent: NumericGaugeView) {
             self.parent = parent
-            sub = gauge.valuePublisher.assign(to: \.value.wrappedValue, on: parent)
+            super.init()
+        }
+        
+        public func attach(to gauge: NumericGauge) {
+            gauge.addTarget(self, action: #selector(handleValue(sender:)), for: .valueChanged)
+        }
+        
+        @objc private func handleValue(sender: NumericGauge) {
+            parent.value = sender.value
+        }
+        
+        deinit {
+            print("*** COORDINATOR DEINIT")
         }
     }
-        
-    private let gauge: NumericGauge
-    private let value: Binding<Double>
-    private var proxy: ValueProxy?
+    
+    @Binding public var value: Double
+    
+    private let minValue: Double
+    private let maxValue: Double
+    private let layout: NumericGaugeLayout
+    private let theme: NumericGaugeTheme
+    private let valuePreviewMode: NumericGauge.ValuePreviewMode
+    
+//    @State private var gauge: NumericGauge
     
     public init(value: Binding<Double>, minValue: Double, maxValue: Double, layout: NumericGaugeLayout = NumericGaugeLayout(), theme: NumericGaugeTheme = .default, valuePreviewMode: NumericGauge.ValuePreviewMode = .default) {
-        gauge = NumericGauge(minValue: minValue, maxValue: maxValue, layout: layout, theme: theme, valuePreviewMode: valuePreviewMode)
-        self.value = value
-        gauge.set(value: value.wrappedValue)
-        proxy = ValueProxy(parent: self, gauge: gauge)
+        self._value = value
+        self.minValue = minValue
+        self.maxValue = maxValue
+        self.layout = layout
+        self.theme = theme
+        self.valuePreviewMode = valuePreviewMode
+    }
+    
+    public func makeCoordinator() -> Coordinator {
+        Coordinator(parent: self)
     }
     
     public func makeUIView(context: Context) -> some UIView {
-        gauge
+        let gauge = NumericGauge(minValue: minValue, maxValue: maxValue, layout: layout, theme: theme, valuePreviewMode: valuePreviewMode)
+        gauge.value = value
+        context.coordinator.attach(to: gauge)
+        return gauge
     }
     
     public func updateUIView(_ uiView: UIViewType, context: Context) {
         uiView.setNeedsLayout()
     }
+    
+    public func makeCoordinator() -> () {
+        Coordinator(parent: self)
+    }
+}
+
+private class PreviewViewModel: ObservableObject {
+    @Published public var value: Double = 50 {
+        didSet {
+            print("value: \(value)")
+        }
+    }
 }
 
 #Preview {
-    var value = Binding<Double>(get: { 1.0 }, set: { _ in })
+    @ObservedObject var vm = PreviewViewModel()
     
-    NumericGaugeView(value: value, minValue: 0, maxValue: 100)
+    NumericGaugeView(value: $vm.value, minValue: 0, maxValue: 100)
         .frame(height: 60)
 }
