@@ -127,6 +127,15 @@ public final class NumericGauge: UIControl {
         scrollView.addSubview(imageView)
         addSubview(indicatorView)
         
+        imageView.translatesAutoresizingMaskIntoConstraints = false
+        
+        if let previewLabel {
+            previewLabel.translatesAutoresizingMaskIntoConstraints = false
+            addSubview(previewLabel)
+        }
+        
+        setupConstraints()
+        
         indicatorView.backgroundColor = theme.indicator
         backgroundColor = theme.background
     }
@@ -139,13 +148,26 @@ public final class NumericGauge: UIControl {
     public override func layoutSubviews() {
         super.layoutSubviews()
         
+        guard imageView.image == nil else { return }
+        
+        imageView.image = createGaugeBar()
+        imageView.sizeToFit()
+        
         let w = floor(self.bounds.width * 0.5)
+        
         scrollView.contentInset = UIEdgeInsets(top: 0, left: w, bottom: 0, right: w)
         let pct = (value - minValue) / (maxValue - minValue)
         let x = pct * layout.barWidth
-        let bar = createGaugeBar()
-        imageView.image = bar
-        imageView.sizeToFit()
+        
+        // We need the scrollview to layout before
+        scrollView.layoutIfNeeded()
+        
+        scrollView.contentOffset = CGPoint(x: -w + x, y: 0.0)
+        
+        scrollView.delegate = self
+    }
+    
+    private func setupConstraints() {
         
         NSLayoutConstraint.activate([
             scrollView.topAnchor.constraint(equalTo: topAnchor),
@@ -165,17 +187,12 @@ public final class NumericGauge: UIControl {
         ])
         
         if let previewLabel {
-            addSubview(previewLabel)
-            previewLabel.translatesAutoresizingMaskIntoConstraints = false
-            previewLabel.centerXAnchor.constraint(equalTo: centerXAnchor).isActive = true
-            previewLabel.centerYAnchor.constraint(equalTo: centerYAnchor).isActive = true
+            NSLayoutConstraint.activate([
+                previewLabel.centerXAnchor.constraint(equalTo: centerXAnchor),
+                previewLabel.centerYAnchor.constraint(equalTo: centerYAnchor)
+            ])
+            
         }
-        
-        // We need the scrollview to layout before
-        scrollView.layoutIfNeeded()
-                
-        scrollView.contentOffset = CGPoint(x: -w + x, y: 0.0)
-        scrollView.delegate = self
     }
     
     /// Create the gauge bar image.
