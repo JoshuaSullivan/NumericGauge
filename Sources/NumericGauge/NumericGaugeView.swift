@@ -18,10 +18,6 @@ public struct NumericGaugeView: UIViewRepresentable {
         @objc private func handleValue(sender: NumericGauge) {
             parent.value = sender.value
         }
-        
-        deinit {
-            print("*** COORDINATOR DEINIT")
-        }
     }
     
     @Binding public var value: Double
@@ -56,10 +52,6 @@ public struct NumericGaugeView: UIViewRepresentable {
     
     public func updateUIView(_ uiView: UIViewType, context: Context) {
         uiView.setNeedsLayout()
-    }
-    
-    public func makeCoordinator() -> () {
-        Coordinator(parent: self)
     }
 }
 

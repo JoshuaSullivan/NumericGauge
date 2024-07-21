@@ -1,5 +1,6 @@
 import UIKit
 import Combine
+import TransientLabel
 
 /// A control that functions similarly to a Slider, but uses a fixed reference point with a sliding gauge under it.
 ///
@@ -15,11 +16,13 @@ public final class NumericGauge: UIControl {
         
         /// A default number formatter will be used.
         ///
-        /// This formatter will have a precision based on the numeric range encompassed by the gauge.
+        /// This formatter will have a precision based on the numeric range encompassed by the gauge as well
+        /// as a preview label using the standard (theme-aware) design.
+        ///
         case `default`
         
-        /// Provide a custom formatter by
-        case custom(NumberFormatter)
+        /// Provide a custom formatter and transient label to completely control visual design.
+        case custom(formatter: NumberFormatter, label: TransientLabel)
     }
     
     /// The current value of the gauge.
@@ -28,6 +31,9 @@ public final class NumericGauge: UIControl {
             sendActions(for: .valueChanged)
             valueSubject.send(value)
             updateBarIfNecessary()
+            
+            guard let previewLabel, let previewValue = formatter.string(from: NSNumber(value: value)) else { return }
+            previewLabel.display(previewValue)
         }
     }
     
@@ -39,10 +45,7 @@ public final class NumericGauge: UIControl {
     
     /// The color theme of the bar.
     public let theme: NumericGaugeTheme
-    
-    /// Controls whether or not live value preview is shown.
-    private let showValuePreview: Bool
-    
+        
     /// Number formatter for live value preview.
     public let formatter: NumberFormatter
     
@@ -64,8 +67,12 @@ public final class NumericGauge: UIControl {
     }()
     
     private let scrollView: UIScrollView
+    private let indicatorView: UIView
+    private var imageView: UIImageView = UIImageView(frame: .zero)
     
     private var updatedByScrollView: Bool = false
+    
+    private var previewLabel: TransientLabel?
     
     /// Create a new instance of NumericGauge.
     public init(minValue: Double, maxValue: Double, layout: NumericGaugeLayout = NumericGaugeLayout(), theme: NumericGaugeTheme = .default, valuePreviewMode: ValuePreviewMode = .default) {
@@ -78,10 +85,8 @@ public final class NumericGauge: UIControl {
         
         switch valuePreviewMode {
         case .disabled:
-            showValuePreview = false
             formatter = NumberFormatter()
         case .default:
-            showValuePreview = true
             let nf = NumberFormatter()
             nf.numberStyle = .decimal
             nf.usesGroupingSeparator = false
@@ -99,9 +104,10 @@ public final class NumericGauge: UIControl {
                 nf.maximumFractionDigits = 0
             }
             self.formatter = nf
-        case .custom(let formatter):
-            showValuePreview = true
+            self.previewLabel = TransientLabel()
+        case let .custom(formatter, label):
             self.formatter = formatter
+            self.previewLabel = label
         }
                 
         scrollView = UIScrollView(frame: .zero)
@@ -112,8 +118,17 @@ public final class NumericGauge: UIControl {
         scrollView.minimumZoomScale = 1.0
         scrollView.decelerationRate = .fast
         
+        indicatorView = UIView(frame: .zero)
+        indicatorView.translatesAutoresizingMaskIntoConstraints = false
+        
         super.init(frame: .zero)
-        self.backgroundColor = theme.background
+        
+        addSubview(scrollView)
+        scrollView.addSubview(imageView)
+        addSubview(indicatorView)
+        
+        indicatorView.backgroundColor = theme.indicator
+        backgroundColor = theme.background
     }
     
     @available(*, unavailable)
@@ -122,20 +137,15 @@ public final class NumericGauge: UIControl {
     }
     
     public override func layoutSubviews() {
-        addSubview(scrollView)
-
-        let w = floor(self.bounds.width * 0.5)
+        super.layoutSubviews()
         
-        let imageView = UIImageView(image: gaugeBar)
-        scrollView.addSubview(imageView)
+        let w = floor(self.bounds.width * 0.5)
         scrollView.contentInset = UIEdgeInsets(top: 0, left: w, bottom: 0, right: w)
         let pct = (value - minValue) / (maxValue - minValue)
         let x = pct * layout.barWidth
-        
-        let indicatorView = UIView(frame: .zero)
-        indicatorView.translatesAutoresizingMaskIntoConstraints = false
-        indicatorView.backgroundColor = theme.indicator
-        addSubview(indicatorView)
+        let bar = createGaugeBar()
+        imageView.image = bar
+        imageView.sizeToFit()
         
         NSLayoutConstraint.activate([
             scrollView.topAnchor.constraint(equalTo: topAnchor),
@@ -153,6 +163,13 @@ public final class NumericGauge: UIControl {
             indicatorView.widthAnchor.constraint(equalToConstant: 1),
             indicatorView.centerXAnchor.constraint(equalTo: centerXAnchor)
         ])
+        
+        if let previewLabel {
+            addSubview(previewLabel)
+            previewLabel.translatesAutoresizingMaskIntoConstraints = false
+            previewLabel.centerXAnchor.constraint(equalTo: centerXAnchor).isActive = true
+            previewLabel.centerYAnchor.constraint(equalTo: centerYAnchor).isActive = true
+        }
         
         // We need the scrollview to layout before
         scrollView.layoutIfNeeded()

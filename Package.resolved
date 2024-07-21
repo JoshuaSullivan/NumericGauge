@@ -1,0 +1,15 @@
+{
+  "originHash" : "bd5220ea18c6be76a72d42b9ab94563c61a71bf19a251bc1152409e86fc32b57",
+  "pins" : [
+    {
+      "identity" : "transientlabel",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/JoshuaSullivan/TransientLabel.git",
+      "state" : {
+        "revision" : "e56708bb9c40e2e32510d568c7c749954d94f364",
+        "version" : "1.0.1"
+      }
+    }
+  ],
+  "version" : 3
+}
