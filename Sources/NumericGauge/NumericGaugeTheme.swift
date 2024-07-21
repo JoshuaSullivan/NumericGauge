@@ -15,12 +15,30 @@ public struct NumericGaugeTheme {
     /// The color of the fixed indicator.
     public let indicator: UIColor
     
+    /// The font the label uses, if active.
+    public let labelFont: UIFont
+    
+    /// The text color of the label, if active.
+    ///
+    /// Default value is `UIColor.label`.
+    ///
+    public let labelTextColor: UIColor
+    
+    /// The background color of the label, if active.
+    ///
+    /// Default value is `UIColor.systemBackground.withAlphaComponent(0.4)`.
+    ///
+    public let labelBackgroundColor: UIColor
+    
     /// Create a new instance of Theme.
-    public init(background: UIColor, majorTick: UIColor, minorTick: UIColor, indicator: UIColor) {
+    public init(background: UIColor, majorTick: UIColor, minorTick: UIColor, indicator: UIColor, labelFont: UIFont, labelTextColor: UIColor, labelBackgroundColor: UIColor) {
         self.background = background
         self.majorTick = majorTick
         self.minorTick = minorTick
         self.indicator = indicator
+        self.labelFont = labelFont
+        self.labelTextColor = labelTextColor
+        self.labelBackgroundColor = labelBackgroundColor
     }
 }
 
@@ -38,8 +56,8 @@ public extension NumericGaugeTheme {
             let minor = UIColor(named: "MinorTick"),
             let ind = UIColor(named: "Indicator")
         else {
-            return NumericGaugeTheme(background: .darkGray, majorTick: .white, minorTick: .lightGray, indicator: .yellow)
+            return NumericGaugeTheme(background: .darkGray, majorTick: .white, minorTick: .lightGray, indicator: .yellow, labelFont: .preferredFont(forTextStyle: .subheadline), labelTextColor: .label, labelBackgroundColor: .systemBackground.withAlphaComponent(0.4))
         }
-        return NumericGaugeTheme(background: bg, majorTick: major, minorTick: minor, indicator: ind)
+        return NumericGaugeTheme(background: bg, majorTick: major, minorTick: minor, indicator: ind, labelFont: .preferredFont(forTextStyle: .subheadline), labelTextColor: .label, labelBackgroundColor: .systemBackground.withAlphaComponent(0.4))
     }()
 }
