@@ -13,7 +13,7 @@ let package = Package(
             targets: ["NumericGauge"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/JoshuaSullivan/TransientLabel.git", from: "1.0.0"),
+        .package(url: "https://github.com/JoshuaSullivan/TransientLabel.git", from: "0.0.1"),
     ],
     targets: [
         .target(name: "NumericGauge", dependencies: ["TransientLabel"]),
