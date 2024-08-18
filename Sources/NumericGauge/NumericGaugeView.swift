@@ -66,6 +66,6 @@ private class PreviewViewModel: ObservableObject {
 #Preview {
     @ObservedObject var vm = PreviewViewModel()
     
-    NumericGaugeView(value: $vm.value, minValue: 0, maxValue: 100)
+    return NumericGaugeView(value: $vm.value, minValue: 0, maxValue: 100)
         .frame(height: 60)
 }
