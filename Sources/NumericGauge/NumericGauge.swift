@@ -104,7 +104,7 @@ public final class NumericGauge: UIControl {
                 nf.maximumFractionDigits = 0
             }
             self.formatter = nf
-            self.previewLabel = TransientLabel(font: theme.labelFont, textColor: theme.labelTextColor, backgroundColor: theme.labelBackgroundColor)
+            self.previewLabel = TransientLabel(font: theme.labelFont, textColor: theme.labelTextColor, background: .solidColor(theme.labelBackgroundColor))
         case let .custom(formatter, label):
             self.formatter = formatter
             self.previewLabel = label

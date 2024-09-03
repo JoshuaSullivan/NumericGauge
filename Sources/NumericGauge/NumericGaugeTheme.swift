@@ -49,7 +49,7 @@ public extension NumericGaugeTheme {
     ///
     /// Works with both light and dark system themes.
     ///
-    public static let `default`: NumericGaugeTheme = {
+    static let `default`: NumericGaugeTheme = {
         guard
             let bg = UIColor(named: "BarBackground"),
             let major = UIColor(named: "MajorTick"),
