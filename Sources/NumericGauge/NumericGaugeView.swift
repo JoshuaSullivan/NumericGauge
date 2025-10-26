@@ -3,18 +3,19 @@ import Combine
 
 public struct NumericGaugeView: UIViewRepresentable {
     
+    @MainActor
     public class Coordinator: NSObject {
         private var parent: NumericGaugeView
-        
+
         init(parent: NumericGaugeView) {
             self.parent = parent
             super.init()
         }
-        
+
         public func attach(to gauge: NumericGauge) {
             gauge.addTarget(self, action: #selector(handleValue(sender:)), for: .valueChanged)
         }
-        
+
         @objc private func handleValue(sender: NumericGauge) {
             parent.value = sender.value
         }

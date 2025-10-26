@@ -1,7 +1,7 @@
 import CoreGraphics
 
 /// Controls the layout characteristics of the numeric gauge.
-public struct NumericGaugeLayout {
+public struct NumericGaugeLayout: Sendable {
     
     /// The bar width of the gauge.
     ///

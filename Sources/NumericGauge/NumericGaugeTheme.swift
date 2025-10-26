@@ -1,7 +1,7 @@
 import UIKit
 
 /// A color theme for the NumericGauge.
-public struct NumericGaugeTheme {
+public struct NumericGaugeTheme: Sendable {
     
     /// The background color of the gauge.
     public let background: UIColor
