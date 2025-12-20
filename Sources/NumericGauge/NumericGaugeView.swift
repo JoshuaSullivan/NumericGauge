@@ -52,7 +52,10 @@ public struct NumericGaugeView: UIViewRepresentable {
     }
     
     public func updateUIView(_ uiView: UIViewType, context: Context) {
-        uiView.setNeedsLayout()
+        guard let gauge = uiView as? NumericGauge else { return }
+        if gauge.value != value {
+            gauge.value = value
+        }
     }
 }
 

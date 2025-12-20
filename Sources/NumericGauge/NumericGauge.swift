@@ -234,7 +234,7 @@ public final class NumericGauge: UIControl {
             return
         }
         let pct = (value - minValue) / (maxValue - minValue)
-        let x = pct * layout.barWidth + scrollView.contentInset.left
+        let x = pct * layout.barWidth - scrollView.contentInset.left
         scrollView.contentOffset = CGPoint(x: x, y: 0)
     }
 }
