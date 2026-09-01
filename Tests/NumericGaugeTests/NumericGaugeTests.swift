@@ -225,4 +225,91 @@ struct NumericGaugeTests {
         gauge.value = -75
         #expect(gauge.value == -75)
     }
+
+    // MARK: - Accessibility Tests
+
+    @Test("Gauge is an accessibility element")
+    func testIsAccessibilityElement() {
+        let gauge = NumericGauge(minValue: 0, maxValue: 100, valuePreviewMode: .disabled)
+
+        #expect(gauge.isAccessibilityElement == true)
+    }
+
+    @Test("Gauge has adjustable accessibility trait")
+    func testAccessibilityTraits() {
+        let gauge = NumericGauge(minValue: 0, maxValue: 100, valuePreviewMode: .disabled)
+
+        #expect(gauge.accessibilityTraits.contains(.adjustable))
+    }
+
+    @Test("Accessibility value returns formatted value")
+    func testAccessibilityValue() {
+        // Range 0-100 uses 1 decimal place per the formatter logic
+        let gauge = NumericGauge(minValue: 0, maxValue: 100, valuePreviewMode: .default)
+        gauge.value = 42
+
+        #expect(gauge.accessibilityValue == "42.0")
+    }
+
+    @Test("Accessibility hint is set")
+    func testAccessibilityHint() {
+        let gauge = NumericGauge(minValue: 0, maxValue: 100, valuePreviewMode: .disabled)
+
+        #expect(gauge.accessibilityHint == "Swipe up or down to adjust")
+    }
+
+    @Test("Accessibility increment increases value by default step")
+    func testAccessibilityIncrement() {
+        let gauge = NumericGauge(minValue: 0, maxValue: 100, valuePreviewMode: .disabled)
+        gauge.value = 50
+
+        gauge.accessibilityIncrement()
+
+        // Default step is (100 - 0) / 10 = 10
+        #expect(gauge.value == 60)
+    }
+
+    @Test("Accessibility decrement decreases value by default step")
+    func testAccessibilityDecrement() {
+        let gauge = NumericGauge(minValue: 0, maxValue: 100, valuePreviewMode: .disabled)
+        gauge.value = 50
+
+        gauge.accessibilityDecrement()
+
+        // Default step is (100 - 0) / 10 = 10
+        #expect(gauge.value == 40)
+    }
+
+    @Test("Accessibility increment respects maximum value")
+    func testAccessibilityIncrementAtMax() {
+        let gauge = NumericGauge(minValue: 0, maxValue: 100, valuePreviewMode: .disabled)
+        gauge.value = 95
+
+        gauge.accessibilityIncrement()
+
+        #expect(gauge.value == 100)
+    }
+
+    @Test("Accessibility decrement respects minimum value")
+    func testAccessibilityDecrementAtMin() {
+        let gauge = NumericGauge(minValue: 0, maxValue: 100, valuePreviewMode: .disabled)
+        gauge.value = 5
+
+        gauge.accessibilityDecrement()
+
+        #expect(gauge.value == 0)
+    }
+
+    @Test("Custom accessibility step is respected")
+    func testCustomAccessibilityStep() {
+        let gauge = NumericGauge(minValue: 0, maxValue: 100, valuePreviewMode: .disabled)
+        gauge.accessibilityStep = 5
+        gauge.value = 50
+
+        gauge.accessibilityIncrement()
+        #expect(gauge.value == 55)
+
+        gauge.accessibilityDecrement()
+        #expect(gauge.value == 50)
+    }
 }
