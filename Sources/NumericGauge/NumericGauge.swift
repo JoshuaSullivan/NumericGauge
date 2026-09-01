@@ -51,6 +51,12 @@ public final class NumericGauge: UIControl {
     
     /// The size of the guage bar.
     public let layout: NumericGaugeLayout
+
+    /// The step size used when VoiceOver users swipe up or down to adjust the value.
+    ///
+    /// When `nil`, defaults to one major tick division: `(maxValue - minValue) / majorTickCount`.
+    ///
+    public var accessibilityStep: Double?
     
     /// Publishes the value of the NumericGauge.
     ///
@@ -71,7 +77,15 @@ public final class NumericGauge: UIControl {
     private var imageView: UIImageView = UIImageView(frame: .zero)
     
     private var updatedByScrollView: Bool = false
-    
+
+    /// The navigation controller whose pop gestures this gauge switched off,
+    /// held only for the length of a touch so they can be switched back on.
+    private weak var suppressedNavigationController: UINavigationController?
+
+    /// The width the scroll geometry was last configured for. See
+    /// ``layoutSubviews()``.
+    private var laidOutWidth: CGFloat = 0
+
     private var previewLabel: TransientLabel?
     
     /// Create a new instance of NumericGauge.
@@ -147,23 +161,34 @@ public final class NumericGauge: UIControl {
     
     public override func layoutSubviews() {
         super.layoutSubviews()
-        
-        guard imageView.image == nil else { return }
-        
-        imageView.image = createGaugeBar()
-        imageView.sizeToFit()
-        
-        let w = floor(self.bounds.width * 0.5)
-        
+
+        if imageView.image == nil {
+            imageView.image = createGaugeBar()
+            imageView.sizeToFit()
+        }
+
+        // Keyed on the width, not on "have we ever laid out". The inset is half
+        // the view's width — it is what centres the indicator — so a gauge that
+        // is resized after its first layout keeps an inset for the old width,
+        // and every offset it derives from that is wrong. That went unnoticed
+        // while the only host gave it a fixed 220pt.
+        guard bounds.width > 0, bounds.width != laidOutWidth else { return }
+        laidOutWidth = bounds.width
+
+        let w = floor(bounds.width * 0.5)
+
+        // Silence the delegate across the re-seat: assigning contentOffset
+        // feeds scrollViewDidScroll, which would write the derived value back
+        // onto `value` and drift it a little on every resize.
+        scrollView.delegate = nil
         scrollView.contentInset = UIEdgeInsets(top: 0, left: w, bottom: 0, right: w)
-        let pct = (value - minValue) / (maxValue - minValue)
-        let x = pct * layout.barWidth
-        
+
         // We need the scrollview to layout before
         scrollView.layoutIfNeeded()
-        
-        scrollView.contentOffset = CGPoint(x: -w + x, y: 0.0)
-        
+
+        let pct = (value - minValue) / (maxValue - minValue)
+        scrollView.contentOffset = CGPoint(x: -w + pct * layout.barWidth, y: 0.0)
+
         scrollView.delegate = self
     }
     
@@ -236,6 +261,160 @@ public final class NumericGauge: UIControl {
         let pct = (value - minValue) / (maxValue - minValue)
         let x = pct * layout.barWidth - scrollView.contentInset.left
         scrollView.contentOffset = CGPoint(x: x, y: 0)
+    }
+
+    // MARK: - Coexisting with navigation back gestures
+
+    public override func didMoveToWindow() {
+        super.didMoveToWindow()
+        if window == nil {
+            // Never leave the app's back gesture switched off behind us.
+            setNavigationPopGesturesEnabled(true)
+        } else if touchSentinel.view == nil {
+            addGestureRecognizer(touchSentinel)
+        }
+    }
+
+    /// A zero-duration press used purely to know when a finger is on the gauge.
+    ///
+    /// It recognises alongside the scroll view's own pan and swallows nothing,
+    /// so scrubbing is unaffected; its only job is to bracket the touch.
+    private lazy var touchSentinel: UILongPressGestureRecognizer = {
+        let recognizer = UILongPressGestureRecognizer(
+            target: self,
+            action: #selector(handleTouchSentinel)
+        )
+        recognizer.minimumPressDuration = 0
+        recognizer.cancelsTouchesInView = false
+        recognizer.delaysTouchesBegan = false
+        recognizer.delaysTouchesEnded = false
+        recognizer.delegate = self
+        return recognizer
+    }()
+
+    @objc private func handleTouchSentinel(_ recognizer: UILongPressGestureRecognizer) {
+        switch recognizer.state {
+        case .began:
+            setNavigationPopGesturesEnabled(false)
+        case .ended, .cancelled, .failed:
+            setNavigationPopGesturesEnabled(true)
+        default:
+            break
+        }
+    }
+
+    /// Switches the enclosing navigation controller's interactive-pop gestures
+    /// off for the duration of a touch on the gauge, and back on after.
+    ///
+    /// A gauge is scrubbed by dragging horizontally, and from iOS 26 so is
+    /// going back: `interactiveContentPopGestureRecognizer` pops on a
+    /// leading-to-trailing pan anywhere in the navigation controller's content.
+    ///
+    /// Disabling rather than a failure requirement, which was tried first and
+    /// is worse than useless here: `require(toFail:)` makes the pop wait for
+    /// the scroll view's pan to fail, but by then the pop has already engaged
+    /// and taken the touch — so a rightward drag would neither scrub nor
+    /// navigate. Turning the recognisers off for the length of the touch means
+    /// the scroll view is the only thing competing for it.
+    ///
+    /// Scoped to the touch, so back navigation works normally everywhere else
+    /// on the screen and the moment the finger lifts.
+    /// Test seam for ``setNavigationPopGesturesEnabled(_:)``, which is driven by
+    /// a real touch and so cannot be reached from a unit test.
+    func setNavigationPopGesturesEnabledForTesting(_ isEnabled: Bool) {
+        setNavigationPopGesturesEnabled(isEnabled)
+    }
+
+    private func setNavigationPopGesturesEnabled(_ isEnabled: Bool) {
+        // Re-enabling targets whatever was disabled, not whatever is reachable
+        // now. By the time a gauge leaves its window it is already detached, so
+        // the responder chain no longer finds the navigation controller — and
+        // re-enabling by lookup would silently do nothing, leaving the app
+        // unable to navigate back for the rest of its life.
+        let navigationController = isEnabled
+            ? suppressedNavigationController
+            : enclosingNavigationController
+        guard let navigationController else { return }
+
+        navigationController.interactivePopGestureRecognizer?.isEnabled = isEnabled
+        if #available(iOS 26.0, visionOS 26.0, *) {
+            navigationController.interactiveContentPopGestureRecognizer?.isEnabled = isEnabled
+        }
+
+        suppressedNavigationController = isEnabled ? nil : navigationController
+    }
+
+    /// The navigation controller this gauge is presented inside, if any.
+    ///
+    /// Found through the responder chain, which reaches a SwiftUI hosting
+    /// controller exactly as it reaches a UIKit one — so a gauge inside a
+    /// `NavigationStack` resolves the same `UINavigationController` that
+    /// installed the pop gestures. `nil` where there is no navigation to fight
+    /// with, which is the common case on a canvas.
+    var enclosingNavigationController: UINavigationController? {
+        var responder: UIResponder? = next
+        while let current = responder {
+            if let navigationController = current as? UINavigationController {
+                return navigationController
+            }
+            if let viewController = current as? UIViewController,
+               let navigationController = viewController.navigationController {
+                return navigationController
+            }
+            responder = current.next
+        }
+        return nil
+    }
+}
+
+// MARK: - Accessibility
+
+extension NumericGauge {
+
+    public override var isAccessibilityElement: Bool {
+        get { true }
+        set { }
+    }
+
+    public override var accessibilityTraits: UIAccessibilityTraits {
+        get { .adjustable }
+        set { }
+    }
+
+    public override var accessibilityValue: String? {
+        get { formatter.string(from: NSNumber(value: value)) }
+        set { }
+    }
+
+    public override var accessibilityHint: String? {
+        get { "Swipe up or down to adjust" }
+        set { }
+    }
+
+    /// The effective step size for accessibility adjustments.
+    private var effectiveAccessibilityStep: Double {
+        accessibilityStep ?? (maxValue - minValue) / Double(layout.majorTickCount)
+    }
+
+    public override func accessibilityIncrement() {
+        value = min(value + effectiveAccessibilityStep, maxValue)
+    }
+
+    public override func accessibilityDecrement() {
+        value = max(value - effectiveAccessibilityStep, minValue)
+    }
+}
+
+// MARK: - UIGestureRecognizerDelegate
+
+extension NumericGauge: UIGestureRecognizerDelegate {
+
+    /// The sentinel observes; it never competes.
+    public func gestureRecognizer(
+        _ gestureRecognizer: UIGestureRecognizer,
+        shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
+    ) -> Bool {
+        true
     }
 }
 

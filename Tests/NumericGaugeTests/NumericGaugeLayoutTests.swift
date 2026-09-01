@@ -5,6 +5,14 @@ import CoreGraphics
 @Suite("NumericGaugeLayout Tests")
 struct NumericGaugeLayoutTests {
 
+    // The default ratios have to be bound to named constants rather than
+    // written inline. `#expect(x == (2.0/3.0))` fails against a `CGFloat`
+    // property holding exactly those bits — the macro's capture of the
+    // literal division comes back unequal even though the two values have
+    // identical bit patterns outside it.
+    private static let twoThirds: CGFloat = 2.0 / 3.0
+    private static let oneThird: CGFloat = 1.0 / 3.0
+
     @Test("Default initialization")
     func testDefaultInitialization() {
         let layout = NumericGaugeLayout()
@@ -12,8 +20,8 @@ struct NumericGaugeLayoutTests {
         #expect(layout.barWidth == 1000)
         #expect(layout.majorTickCount == 10)
         #expect(layout.minorTickCount == 100)
-        #expect(layout.majorTickHeightRatio == (2.0/3.0))
-        #expect(layout.minorTickHeightRatio == (1.0/3.0))
+        #expect(layout.majorTickHeightRatio == Self.twoThirds)
+        #expect(layout.minorTickHeightRatio == Self.oneThird)
     }
 
     @Test("Custom initialization")
@@ -40,8 +48,8 @@ struct NumericGaugeLayoutTests {
         #expect(layout.barWidth == 1500)
         #expect(layout.majorTickCount == 10)
         #expect(layout.minorTickCount == 100)
-        #expect(layout.majorTickHeightRatio == (2.0/3.0))
-        #expect(layout.minorTickHeightRatio == (1.0/3.0))
+        #expect(layout.majorTickHeightRatio == Self.twoThirds)
+        #expect(layout.minorTickHeightRatio == Self.oneThird)
     }
 
     @Test("Height ratios are valid", arguments: [
