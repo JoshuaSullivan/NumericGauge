@@ -1,3 +1,10 @@
+// This package is built for touch: every control in it is UIKit-backed.
+// The Mac has system controls that do the same job better, so rather than
+// port anything, the whole module compiles away there — hosts switch on the
+// platform and use `Slider` and friends instead. The guard is additive: on
+// iOS, iPadOS and visionOS nothing changes.
+#if canImport(UIKit)
+
 import CoreGraphics
 
 /// Controls the layout characteristics of the numeric gauge.
@@ -45,3 +52,4 @@ public struct NumericGaugeLayout: Sendable {
         self.minorTickHeightRatio = minorTickHeightRatio
     }
 }
+#endif

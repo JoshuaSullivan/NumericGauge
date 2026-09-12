@@ -6,7 +6,10 @@ let package = Package(
     name: "NumericGauge",
     platforms: [
         .iOS(.v15),
-        .visionOS(.v1)
+        .visionOS(.v1),
+        // macOS builds the module empty (see the guard atop each source):
+        // the Mac uses system controls rather than this touch-first gauge.
+        .macOS(.v14)
     ],
     products: [
         .library(

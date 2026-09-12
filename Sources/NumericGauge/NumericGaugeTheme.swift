@@ -1,3 +1,10 @@
+// This package is built for touch: every control in it is UIKit-backed.
+// The Mac has system controls that do the same job better, so rather than
+// port anything, the whole module compiles away there — hosts switch on the
+// platform and use `Slider` and friends instead. The guard is additive: on
+// iOS, iPadOS and visionOS nothing changes.
+#if canImport(UIKit)
+
 import UIKit
 
 /// A color theme for the NumericGauge.
@@ -61,3 +68,4 @@ public extension NumericGaugeTheme {
         return NumericGaugeTheme(background: bg, majorTick: major, minorTick: minor, indicator: ind, labelFont: .preferredFont(forTextStyle: .subheadline), labelTextColor: .label, labelBackgroundColor: .systemBackground.withAlphaComponent(0.4))
     }()
 }
+#endif
